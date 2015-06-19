@@ -4,6 +4,7 @@
   "description": "description here...",
   "version": "1.0",
   "options_page": "options.html",
+  "author": "author name",
 
   "icons": {
     "16": "img/icon-16.png",

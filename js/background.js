@@ -1,11 +1,12 @@
 var c = {
     _styles: {
         str: 'background: #f2dede; padding: 2px 2px; border-bottom: 1px solid #a94442;',
+        str: 'background: #f2dede; padding: 2px 2px; border-bottom: 1px solid #a94442; font-weight: bold;',
         obj: 'padding: 2px 0px;'
     },
     _targets: {
         popup: false,
-        background: true,
+        background: false,
         content: true
     },
 
@@ -23,14 +24,23 @@ var c = {
             switch (typeof args[arg]) {
                 case "string":
                 case "int":
-                case "bool":
+                case "number":
                     a[0] += "%c%s";
                     a.push(c._styles.str);
                     a.push(args[arg]);
                     break;
 
+                case "boolean":
+                case "undefined":
+                case "null":
+                    a[0] += "%c%s";
+                    a.push(c._styles.sys);
+                    a.push(args[arg])
+                    break;
+
+                case "function":
                 case "object":
-                    a[0] += " %c%o"
+                    a[0] += " %c%o";
                     a.push(c._styles.obj);
                     a.push(args[arg]);
                     break;
@@ -43,24 +53,45 @@ var c = {
         if (c._targets.popup) { }
         if (c._targets.background) { console[action].apply(console, a); }
         if (c._targets.content) {
-            var params = {
+            content.postMessage({
                 method: "console",
                 action: action,
                 args: a
-            };
-
-            chrome.tabs.query({ active: true }, function(tabs) {
-                chrome.tabs.sendMessage(tabs[0].id, params, function(response) {});
             });
         }
     }
 };
 
-// Listen for messages from content
-chrome.runtime.onMessage.addListener(function(request, sender, sendResponse) {
-    switch(request.method) {
-        case "console":
-            console[request.action].apply(console, request.args)
-            break;
+chrome.runtime.onConnect.addListener(function(port) {
+    if (port.name == "content2background") {
+        content = port;
+        content.onMessage.addListener(function(request) {
+            switch(request.method) {
+                case "ready":
+                    c.log("connected to " + port.name);
+                    break;
+
+                case "console":
+                    console[request.action].apply(console, request.args);
+                    break;
+
+                default:
+                    c.log("no method for " + request.method);
+            }
+        });
+    }
+
+    if (port.name == "popup2background") {
+        popup = port;
+        popup.onMessage.addListener(function(request) {
+            switch(request.method) {
+                case "ready":
+                    c.log("connected to " + port.name);
+                    break;
+
+                default:
+                    c.log("no method for " + request.method);
+            }
+        });
     }
 });
